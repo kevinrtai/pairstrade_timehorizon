@@ -85,10 +85,36 @@ def generate_prediction(prices, state_means, names):
   return predicted
 
 
+def generate_delayed_prediction(prices, state_means, names, delay):
+  slope = state_means[:, 0]
+  intercept = state_means[:, 1]
+  
+  for i in range(slope.size):
+    slope[i] = slope[i - i % delay]
+    intercept[i] = intercept[i - i % delay]
+
+  predicted = slope * prices[names[0]] + intercept
+  return predicted
+
+
 def draw_dynamic_prediction(prices, state_means, names):
   slope = state_means[:, 0]
   intercept = state_means[:, 1]
   predicted = generate_prediction(prices, state_means, names)
+  pd.DataFrame(
+    {
+      names[0]: prices[names[0]],
+      names[1]: prices[names[1]],
+      'predicted': predicted
+    }, index=prices.index
+  ).plot()
+  plt.show()
+
+
+def draw_dynamic_prediction_delayed(prices, state_means, names, delay):
+  slope = state_means[:, 0]
+  intercept = state_means[:, 1]
+  predicted = generate_delayed_prediction(prices, state_means, names, delay)
   pd.DataFrame(
     {
       names[0]: prices[names[0]],
@@ -112,32 +138,20 @@ def plot_differences(prices, state_means, names):
   plt.show()
 
 
-if __name__ == "__main__":
-  # Choose the ETF symbols to work with along with 
-  # start and end dates for the price histories
-  # names = ['TLT', 'IEI']
-  # start_date = "2012-8-01"
-  # end_date = "2016-08-01"    
-  
-  # Obtain the adjusted closing prices from Yahoo finance
-  # prices = DataReader(
-  #     names, 'yahoo', start_date, end_date
-  # )['Adj Close']
+def plot_differences_delayed(prices, state_means, names, delay):
+  # Plot differences between predicted and actual w/ 2std lines
+  predicted = generate_delayed_prediction(prices, state_means, names, delay)
+  difference = prices[names[1]] - predicted
+  stddev = np.std(difference)
+  pd.DataFrame(
+    {'difference': difference, 
+     'sigma': np.repeat(stddev, difference.size), 
+     '-sigma': np.repeat(-stddev, difference.size)
+    }, index=prices.index).plot()
+  plt.show()
 
-  # Load csvs
-  csvs = ['10Yr30Yr.csv', 'es_djia.csv', 'FiveYrTenYr.csv', 'wti_brent.csv']
-  titles = [('10Yr', '30Yr'), ('Dow', 'SPX'), ('FiveYr', 'TenYr'), ('WTI', 'Brent')]
-  i = 3
-  csv = csvs[i]
-  names = titles[i]
-  prices = pd.read_csv(csv, index_col=0, parse_dates=True) 
 
-  # draw_date_coloured_scatterplot(names, prices)
-  state_means, state_covs = calc_slope_intercept_kalman(names, prices)
-  # draw_slope_intercept_changes(prices, state_means)
-  # draw_dynamic_prediction(prices, state_means, names)
-  # plot_differences(prices, state_means, names)
-
+def draw_reversion_hist(prices, state_means, names):
   # Figure out how much time the series spends outside of the 1 standard deviation line
   predicted = generate_prediction(prices, state_means, names)
   difference = prices[names[1]] - predicted
@@ -156,7 +170,65 @@ if __name__ == "__main__":
       days += 1 
 
   # the histogram of the data
-  n, bins, patches = plt.hist(days_to_revert, 50, normed=1, facecolor='green', alpha=0.75)
-  l = plt.plot(bins, 'r--', linewidth=1)
+  plt.hist(days_to_revert, bins=max(days_to_revert) + 1)
+  plt.title(csv)
+  plt.xlabel('days')
+  plt.ylabel('frequency')
   plt.show()
 
+
+def draw_delayed_reversion_hist(prices, state_means, names, delay):
+  # Figure out how much time the series spends outside of the 1 standard deviation line
+  predicted = generate_delayed_prediction(prices, state_means, names, delay)
+  difference = prices[names[1]] - predicted
+  stddev = np.std(difference)
+  days_to_revert = []
+  outside = False
+  days = 0
+  for i in range(difference.size):
+    if outside and np.abs(difference[i]) < stddev:
+      outside = False
+      days_to_revert.append(days)
+    elif not outside and np.abs(difference[i]) > stddev:
+      outside = True
+      days = 0 
+    else:
+      days += 1 
+
+  # the histogram of the data
+  plt.hist(days_to_revert, bins=max(days_to_revert) + 1)
+  plt.title(csv)
+  plt.xlabel('days')
+  plt.ylabel('frequency')
+  plt.show() 
+
+
+if __name__ == "__main__":
+  # Choose the ETF symbols to work with along with 
+  # start and end dates for the price histories
+  # names = ['TLT', 'IEI']
+  # start_date = "2012-8-01"
+  # end_date = "2016-08-01"    
+  
+  # Obtain the adjusted closing prices from Yahoo finance
+  # prices = DataReader(
+  #     names, 'yahoo', start_date, end_date
+  # )['Adj Close']
+
+  # Load csvs
+  csvs = ['10Yr30Yr.csv', 'es_djia.csv', 'FiveYrTenYr.csv', 'wti_brent.csv']
+  titles = [('10Yr', '30Yr'), ('Dow', 'SPX'), ('FiveYr', 'TenYr'), ('WTI', 'Brent')]
+  i = 0
+  csv = csvs[i]
+  names = titles[i]
+  prices = pd.read_csv(csv, index_col=0, parse_dates=True) 
+
+  # draw_date_coloured_scatterplot(names, prices)
+  state_means, state_covs = calc_slope_intercept_kalman(names, prices)
+  # draw_slope_intercept_changes(prices, state_means)
+  # draw_dynamic_prediction(prices, state_means, names)
+  # plot_differences(prices, state_means, names)
+  # draw_reversion_hist(prices, state_means, names) 
+  # draw_dynamic_prediction_delayed(prices, state_means, names, 30)
+  # plot_differences_delayed(prices, state_means, names, 30)
+  draw_delayed_reversion_hist(prices, state_means, names, 30)
