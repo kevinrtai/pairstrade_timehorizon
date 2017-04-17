@@ -99,6 +99,19 @@ def draw_dynamic_prediction(prices, state_means, names):
   plt.show()
 
 
+def plot_differences(prices, state_means, names):
+  # Plot differences between predicted and actual w/ 2std lines
+  predicted = generate_prediction(prices, state_means, names)
+  difference = prices[names[1]] - predicted
+  stddev = np.std(difference)
+  pd.DataFrame(
+    {'difference': difference, 
+     'sigma': np.repeat(stddev, difference.size), 
+     '-sigma': np.repeat(-stddev, difference.size)
+    }, index=prices.index).plot()
+  plt.show()
+
+
 if __name__ == "__main__":
   # Choose the ETF symbols to work with along with 
   # start and end dates for the price histories
@@ -123,15 +136,10 @@ if __name__ == "__main__":
   state_means, state_covs = calc_slope_intercept_kalman(names, prices)
   # draw_slope_intercept_changes(prices, state_means)
   # draw_dynamic_prediction(prices, state_means, names)
+  # plot_differences(prices, state_means, names)
 
-  # Plot differences between predicted and actual w/ 2std lines
+  # 
   predicted = generate_prediction(prices, state_means, names)
   difference = prices[names[1]] - predicted
-  stddev = np.std(difference)
-  pd.DataFrame(
-    {'difference': difference, 
-     'sigma': np.repeat(stddev, difference.size), 
-     '-sigma': np.repeat(-stddev, difference.size)
-    }, index=prices.index).plot()
-  plt.show()
+
 
