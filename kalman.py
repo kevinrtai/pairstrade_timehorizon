@@ -138,8 +138,25 @@ if __name__ == "__main__":
   # draw_dynamic_prediction(prices, state_means, names)
   # plot_differences(prices, state_means, names)
 
-  # 
+  # Figure out how much time the series spends outside of the 1 standard deviation line
   predicted = generate_prediction(prices, state_means, names)
   difference = prices[names[1]] - predicted
+  stddev = np.std(difference)
+  days_to_revert = []
+  outside = False
+  days = 0
+  for i in range(difference.size):
+    if outside and np.abs(difference[i]) < stddev:
+      outside = False
+      days_to_revert.append(days)
+    elif not outside and np.abs(difference[i]) > stddev:
+      outside = True
+      days = 0 
+    else:
+      days += 1 
 
+  # the histogram of the data
+  n, bins, patches = plt.hist(days_to_revert, 50, normed=1, facecolor='green', alpha=0.75)
+  l = plt.plot(bins, 'r--', linewidth=1)
+  plt.show()
 
