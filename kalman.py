@@ -75,6 +75,10 @@ def draw_slope_intercept_changes(prices, state_means):
           intercept=state_means[:, 1]
       ), index=prices.index
   ).plot(subplots=True)
+  print(state_means[:, 0][-1])
+  print(state_means[:, 1][-1])
+  print(state_means[:, 0][0])
+  print(state_means[:, 1][0])
   plt.show()
 
 
@@ -130,6 +134,7 @@ def plot_differences(prices, state_means, names):
   predicted = generate_prediction(prices, state_means, names)
   difference = prices[names[1]] - predicted
   stddev = np.std(difference)
+  print('stddev: ' + str(stddev))
   pd.DataFrame(
     {'difference': difference, 
      'sigma': np.repeat(stddev, difference.size), 
@@ -143,6 +148,7 @@ def plot_differences_delayed(prices, state_means, names, delay):
   predicted = generate_delayed_prediction(prices, state_means, names, delay)
   difference = prices[names[1]] - predicted
   stddev = np.std(difference)
+  print('stddev: ' + str(stddev))
   pd.DataFrame(
     {'difference': difference, 
      'sigma': np.repeat(stddev, difference.size), 
@@ -182,6 +188,7 @@ def draw_delayed_reversion_hist(prices, state_means, names, delay):
   predicted = generate_delayed_prediction(prices, state_means, names, delay)
   difference = prices[names[1]] - predicted
   stddev = np.std(difference)
+  print('stddev: ' + str(stddev))
   days_to_revert = []
   outside = False
   days = 0
@@ -216,16 +223,16 @@ if __name__ == "__main__":
   # )['Adj Close']
 
   # Load csvs
-  csvs = ['10Yr30Yr.csv', 'es_djia.csv', 'FiveYrTenYr.csv', 'wti_brent.csv']
-  titles = [('10Yr', '30Yr'), ('Dow', 'SPX'), ('FiveYr', 'TenYr'), ('WTI', 'Brent')]
-  i = 0
+  csvs = ['10Yr30Yr.csv', 'es_djia.csv', 'FiveYrTenYr.csv', 'wti_brent.csv', 'tlt_iei.csv']
+  titles = [('10Yr', '30Yr'), ('Dow', 'SPX'), ('FiveYr', 'TenYr'), ('WTI', 'Brent'), ('IEI', 'TLT')]
+  i = 4
   csv = csvs[i]
   names = titles[i]
   prices = pd.read_csv(csv, index_col=0, parse_dates=True) 
 
   # draw_date_coloured_scatterplot(names, prices)
   state_means, state_covs = calc_slope_intercept_kalman(names, prices)
-  # draw_slope_intercept_changes(prices, state_means)
+  draw_slope_intercept_changes(prices, state_means)
   # draw_dynamic_prediction(prices, state_means, names)
   # plot_differences(prices, state_means, names)
   # draw_reversion_hist(prices, state_means, names) 

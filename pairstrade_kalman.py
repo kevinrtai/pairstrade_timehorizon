@@ -1,5 +1,6 @@
 from __future__ import print_function
-from zipline.api import order_target, record, symbol
+from zipline.api import order_target, record, symbol, set_slippage, set_commission
+from zipline.finance import slippage, commission
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,8 +10,8 @@ from pykalman import KalmanFilter
 
 def initialize(context):
   context.trading_day_counter = -1
-  context.pair = [symbol('IEI'), symbol('TLT')]
-  context.size = 1000
+  context.pair = [symbol('TLT'), symbol('IEI')]
+  context.size = 500
 
   # Kalman filter parameters
   context.delta = 1e-5
@@ -21,15 +22,18 @@ def initialize(context):
   context.trading = True
   context.days_held = 0
   context.max_days = 5
-  context.spread = 0.5
+  context.spread = 2.6
   context.rebalancing = 5
+
+  set_slippage(slippage.FixedSlippage(spread=0))
+  set_commission(commission.PerShare(cost=0))
  
 def handle_data(context, data):
   # Keep track of how many days the algorithm has been running
   context.trading_day_counter += 1
 
   # Construct Kalman filter since the start of trading 
-  all_history = data.history(context.pair, 'close', 10 + context.trading_day_counter, '1d')
+  all_history = data.history(context.pair, 'close', 60, '1d')
   pair_0_history = all_history[context.pair[0]]
   if context.trading_day_counter % context.rebalancing == 0:
     obs_mat = np.vstack([all_history[context.pair[0]], np.ones(all_history[context.pair[0]].shape)]).T[:, np.newaxis]
@@ -44,15 +48,15 @@ def handle_data(context, data):
     context.means, covariances = context.kf.smooth(all_history[context.pair[1]])
   
   # Compute what the current spread is
-  spread = all_history[context.pair[1]][-1] - (context.means[-1][0] * all_history[context.pair[0]][-1] + context.means[-1][1])
+  spread = all_history[context.pair[1]][-1] - (context.means[0][0] * all_history[context.pair[0]][-1] + context.means[0][1])
 
   if context.trading:
     # Calculate size. Put 60% in long, 60% in short
-    context.size = 0.6 * context.portfolio.cash / all_history[context.pair[0]][-1]
+    # context.size = 0.5 * context.portfolio.cash / all_history[context.pair[0]][-1]
 
     if spread > context.spread:
       order_target(context.pair[0], -context.size)
-      order_target(context.pair[1], int(context.means[-1][0] * context.size))
+      order_target(context.pair[1], int(context.means[0][0] * context.size))
 
       # Exit if it hasn't mean reverted
       if context.in_trade and context.days_held > context.max_days:
@@ -66,7 +70,7 @@ def handle_data(context, data):
       
     elif spread < -context.spread:
       order_target(context.pair[0], context.size) 
-      order_target(context.pair[1], -int(context.means[-1][0] * context.size))
+      order_target(context.pair[1], -int(context.means[0][0] * context.size))
 
       # Exit if it hasn't mean reverted
       if context.in_trade and context.days_held > context.max_days:
